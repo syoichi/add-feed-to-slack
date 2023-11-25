@@ -2,23 +2,48 @@
 
 const SLACK_RSS_APP_URL = 'https://slack.com/apps/A0F81R7U7-rss';
 
-let urlMap = new Map();
+function getFeedUrl() {
+  try {
+    return (new URL(
+      document.querySelector(`
+        link[rel="alternate"][type="application/rss+xml"][href],
+        link[rel="alternate"][type="application/atom+xml"][href]
+      `).href
+    )).toString();
+  } catch (err) {
+    return null;
+  }
+}
 
-chrome.runtime.onMessage.addListener(({url}, {tab}) => {
-  urlMap.set(tab.id, url);
-  chrome.pageAction.show(tab.id);
-});
+function insertFeedUrlAndScrollIntoView(feedUrl) {
+  document.getElementById('feed_url').value = feedUrl;
+  document.querySelector('#settings + .card').scrollIntoView();
+}
 
-chrome.pageAction.onClicked.addListener(tab => {
-  chrome.tabs.create({
+chrome.action.onClicked.addListener(async tab => {
+  const injectionResult = await chrome.scripting.executeScript({
+    target: {
+      tabId: tab.id
+    },
+    func: getFeedUrl,
+  });
+  const feedUrl = injectionResult[0]?.result;
+
+  if (typeof feedUrl !== 'string') {
+    return;
+  }
+
+  const newTab = await chrome.tabs.create({
     url: SLACK_RSS_APP_URL
-  }, () => {
-    chrome.tabs.executeScript(null, {
-      code: `
-        document.getElementById('feed_url').value = '${urlMap.get(tab.id)}';
-        document.querySelector('#settings + .card').scrollIntoView()
-      `,
-      runAt: 'document_end'
-    });
+  });
+
+  chrome.scripting.executeScript({
+    target: {
+      tabId: newTab.id
+    },
+    func: insertFeedUrlAndScrollIntoView,
+    args: [
+      feedUrl,
+    ]
   });
 });
