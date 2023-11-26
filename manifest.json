@@ -22,10 +22,36 @@
     "default_title": "Add feed to Slack"
   },
   "background": {
-    "service_worker": "js/service-worker.js"
+    "service_worker": "js/service-worker.js",
+    "type": "module"
   },
   "permissions": [
     "activeTab",
     "scripting"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*/*"
+      ],
+      "js": [
+        "js/content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "*://*/*"
+      ],
+      "resources": [
+        "js/get-feed-url.js"
+      ],
+      "use_dynamic_url": true
+    }
   ]
 }

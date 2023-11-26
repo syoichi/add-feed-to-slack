@@ -1,29 +1,43 @@
 'use strict';
 
-const SLACK_RSS_APP_URL = 'https://slack.com/apps/A0F81R7U7-rss';
+import {getFeedUrl} from '../js/get-feed-url.js';
 
-function getFeedUrl() {
-  try {
-    return (new URL(
-      document.querySelector(`
-        link[rel="alternate"][type="application/rss+xml"][href],
-        link[rel="alternate"][type="application/atom+xml"][href]
-      `).href
-    )).toString();
-  } catch (err) {
-    return null;
-  }
-}
+const defaultIconPath = chrome.runtime.getURL('img/icon/16.png');
+const grayscaleIconPath = chrome.runtime.getURL('img/icon/16-grayscale.png');
+const SLACK_RSS_APP_URL = 'https://slack.com/apps/A0F81R7U7-rss';
 
 function insertFeedUrlAndScrollIntoView(feedUrl) {
   document.getElementById('feed_url').value = feedUrl;
   document.querySelector('#settings + .card').scrollIntoView();
 }
 
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.action.disable();
+  chrome.action.setIcon({
+    path: grayscaleIconPath,
+  });
+});
+
+chrome.runtime.onMessage.addListener(({feedUrl}, {tab}) => {
+  if (typeof feedUrl === 'string') {
+    chrome.action.enable(tab.id);
+    chrome.action.setIcon({
+      path: defaultIconPath,
+      tabId: tab.id,
+    });
+  } else {
+    chrome.action.disable(tab.id);
+    chrome.action.setIcon({
+      path: grayscaleIconPath,
+      tabId: tab.id,
+    });
+  }
+});
+
 chrome.action.onClicked.addListener(async tab => {
   const injectionResult = await chrome.scripting.executeScript({
     target: {
-      tabId: tab.id
+      tabId: tab.id,
     },
     func: getFeedUrl,
   });
@@ -34,16 +48,16 @@ chrome.action.onClicked.addListener(async tab => {
   }
 
   const newTab = await chrome.tabs.create({
-    url: SLACK_RSS_APP_URL
+    url: SLACK_RSS_APP_URL,
   });
 
   chrome.scripting.executeScript({
     target: {
-      tabId: newTab.id
+      tabId: newTab.id,
     },
     func: insertFeedUrlAndScrollIntoView,
     args: [
       feedUrl,
-    ]
+    ],
   });
 });
